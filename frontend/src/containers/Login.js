@@ -19,15 +19,29 @@ const Login = ({ login, isAuthenticated }) => {
         e.preventDefault();
 
         try {
-            // Ensure the headers are set correctly for JSON
-            await axios.post(
+            // Make sure the URL is correct and the API endpoint is reachable
+            const response = await axios.post(
                 `${process.env.REACT_APP_API_URL}/auth/jwt/create/`,
                 { email, password },
                 { headers: { 'Content-Type': 'application/json' } }
             );
-            // Handle successful login here (redirect, show success message, etc.)
-            login(email, password);
+    
+            // Ensure that the response structure matches what you expect
+            if (response.data && response.data.access) {
+                const { access } = response.data;
+                
+                // Store the token in localStorage
+                localStorage.setItem('token', access);
+    
+                // Optionally, handle successful login
+                login(email, password);
+            } else {
+                // Handle cases where response does not have the expected data
+                setError('Unexpected response format.');
+            }
+    
         } catch (err) {
+            console.error(err); // Log the error for debugging
             setError('Login failed. Please check your credentials.');
         }
     };
