@@ -16,10 +16,7 @@ Then under backend/auth_system/settings.py:
 -   under DATABASES, set the PASSWORD field to your database password
 -   under EMAIL_HOST_USER, set the email that you want to use
 -   under EMAIL_HOST_PASSWORD, set the app password that you setup for your email
--   under SOCIAL_AUTH_GOOGLE_OAUTH2_KEY, paste in your google oauth2 key
--   under SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET, paste in your google oauth2 secret
--   under SOCIAL_AUTH_FACEBOOK_KEY, paste in your facebook oauth2 key
--   under SOCIAL_AUTH_FACEBOOK_SECRET, paste in your facebook oauth2 secret
+
 
 If you get an error when using social authentication that says "ModuleNotFoundError: No module named 'django.utils.six", then do the following:
 
