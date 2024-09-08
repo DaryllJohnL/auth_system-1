@@ -49,7 +49,7 @@ const Login = ({ login, isAuthenticated }) => {
    
 
     if (isAuthenticated) {
-        return <Navigate to='/' />
+        return <Navigate to='/accounts' />
     }
 
     return (

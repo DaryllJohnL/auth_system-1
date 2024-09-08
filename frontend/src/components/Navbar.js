@@ -28,13 +28,18 @@ const Navbar = ({ logout, isAuthenticated }) => {
 
   const authLinks = () => (
     <ul className="navbar-nav">
+       <li className="nav-item">
+        <Link className="nav-link" to="/Accounts">
+          My Accounts
+        </Link>
+      </li>
       <li className="nav-item">
         <Link className="nav-link" to="/Loans">
           My Loan
         </Link>
       </li>
       <li className="nav-item">
-        <a className="nav-link" href="#!" onClick={logout_user}>
+        <a className="nav-link" href="/login" onClick={logout_user}>
           Logout
         </a>
       </li>

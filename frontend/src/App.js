@@ -8,15 +8,15 @@ import Activate from './containers/Activate';
 import ResetPassword from './containers/ResetPassword';
 import ResetPasswordConfirm from './containers/ResetPasswordConfirm';
 import Loans from './containers/Loans';
+import Accounts from './containers/Accounts';
 
 
 import { Provider } from 'react-redux';
 import store from './store';
-
 import Layout from './hocs/Layout';
 
 const App = () => (
-    <Provider store={store}>
+    <Provider store={store}>    
         <Router>
             <Layout>
                 <Routes>
@@ -24,9 +24,11 @@ const App = () => (
                     <Route path='/login' element={<Login />} />
                     <Route path='/signup' element={<Signup />} />
                     <Route path='/loans' element={<Loans />} />
+                    <Route path='/accounts' element={<Accounts />} />
                     <Route path='/reset-password' element={<ResetPassword />} />
                     <Route path='/password/reset/confirm/:uid/:token' element={<ResetPasswordConfirm />} />
                     <Route path='/activate/:uid/:token' element={<Activate />} />
+                    
                 </Routes>
             </Layout>
         </Router>
