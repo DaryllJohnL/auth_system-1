@@ -16,7 +16,7 @@ def calculate_payment(request):
 
     # Sample logic for calculating payments
     if option == 'full-payment':
-        final_amount = total_payment * 0.95  # 5% discount
+        final_amount = amount * 0.95  # 5% discount
     elif option == '30-day-interest-free':
         final_amount = amount  # No interest
     elif option == 'after-30-days':

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import PayInFullModal from "../components/PayInFullModal"; // Import the new component
 
 const Loans = () => {
   const [creditLimit, setCreditLimit] = useState(50000);
@@ -7,19 +8,27 @@ const Loans = () => {
   const [paymentSchedules, setPaymentSchedules] = useState({});
   const [error, setError] = useState(null);
   const [toggleState, setToggleState] = useState({});
+  const [accountBalance, setAccountBalance] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   useEffect(() => {
     const fetchCreditData = async () => {
       try {
         const token = localStorage.getItem("token");
+
         const userInfoResponse = await axios.get("http://localhost:8000/api/user-info/", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
-        const creditLimit = 50000;
-        setCreditLimit(creditLimit);
+        
+        
+        if (userInfoResponse.data && userInfoResponse.data.balance !== undefined) {
+          const balance = parseFloat(userInfoResponse.data.balance);
+          setAccountBalance(balance);
+        }
 
         const transactionsResponse = await axios.get("http://localhost:8000/api/credit-transactions/", {
           headers: {
@@ -27,37 +36,39 @@ const Loans = () => {
           },
         });
 
-        // Calculate total amount used across all transactions
-        const totalUsed = transactionsResponse.data.reduce((total, transaction) => total + parseFloat(transaction.amount_borrowed), 0);
+        const totalUsed = transactionsResponse.data.reduce(
+          (total, transaction) => total + parseFloat(transaction.amount_borrowed),
+          0
+        );
         setAmountUsed(totalUsed);
 
-        // Fetch payment schedules for each transaction and group them by transaction ID
         let schedulesByTransaction = {};
         let initialToggleState = {};
 
         for (let transaction of transactionsResponse.data) {
           const { id, amount_borrowed, months_term, transaction_date } = transaction;
 
-          // Send POST request to get payment schedule for each transaction
-          const scheduleResponse = await axios.post("http://localhost:8000/api/payment-schedule/", {
-            amount_borrowed,
-            months_term,
-            transaction_date,
-          }, {
-            headers: {
-              Authorization: `Bearer ${token}`,
+          const scheduleResponse = await axios.post(
+            "http://localhost:8000/api/payment-schedule/",
+            {
+              amount_borrowed,
+              months_term,
+              transaction_date,
             },
-          });
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
-          // Store payment schedule under the transaction ID
           schedulesByTransaction[id] = {
             transactionId: id,
-            amountBorrowed: parseFloat(amount_borrowed), // Ensure amount_borrowed is a number
+            amountBorrowed: parseFloat(amount_borrowed),
             monthsTerm: months_term,
             paymentSchedule: scheduleResponse.data.schedule,
           };
 
-          // Set initial toggle state to false (collapsed)
           initialToggleState[id] = false;
         }
 
@@ -75,8 +86,22 @@ const Loans = () => {
   const handleToggle = (transactionId) => {
     setToggleState((prevState) => ({
       ...prevState,
-      [transactionId]: !prevState[transactionId], // Toggle the visibility
+      [transactionId]: !prevState[transactionId],
     }));
+  };
+
+  const calculateTotalPayment = (schedule) => {
+    return schedule.reduce((total, entry) => total + parseFloat(entry.payment), 0);
+  };
+
+  const handlePayInFull = (transaction) => {
+    setSelectedTransaction(transaction);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedTransaction(null);
   };
 
   return (
@@ -150,6 +175,23 @@ const Loans = () => {
                       </td>
                     </tr>
                   ))}
+                  <tr>
+                    <td><strong>Total:</strong></td>
+                    <td><strong>₱{calculateTotalPayment(schedule.paymentSchedule).toFixed(2)}</strong></td>
+                    <td>
+                      <button
+                        className="btn btn-success"
+                        onClick={() =>
+                          handlePayInFull({
+                            transactionId: schedule.transactionId,
+                            totalAmount: calculateTotalPayment(schedule.paymentSchedule),
+                          })
+                        }
+                      >
+                        Pay in Full
+                      </button>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -158,6 +200,14 @@ const Loans = () => {
       ) : (
         <p>No payment schedules available.</p>
       )}
+
+      {/* Use PayInFullModal component */}
+      <PayInFullModal
+        show={showModal}
+        handleClose={handleCloseModal}
+        transaction={selectedTransaction}
+        accountBalance={accountBalance}
+      />
     </div>
   );
 };
