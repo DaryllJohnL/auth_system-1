@@ -125,7 +125,7 @@ const Accounts = () => {
         </div>
 
         <div className="container mt-4">
-          <BillCategoriesCard />
+          <BillCategoriesCard amount={balance} />
         </div>
 
         <hr className="my-4" />

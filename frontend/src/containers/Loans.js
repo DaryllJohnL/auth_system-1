@@ -1,249 +1,163 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 
 const Loans = () => {
-  const [showModal, setShowModal] = useState(false);
-  const [calculatedAmountPayAmountDue, setCalculatedAmountPayAmountDue] = useState(0);
-  const [calculatedAmountPayInFull, setCalculatedAmountPayInFull] = useState(0);
-  const [calculatedAmountInterestFree, setCalculatedAmountInterestFree] = useState(0);
-  const [calculatedAmountWithPenalty, setCalculatedAmountWithPenalty] = useState(0);
-  const [paymentOption, setPaymentOption] = useState(""); // State for payment option
-
-  const openModal = () => setShowModal(true);
-  const closeModal = () => setShowModal(false);
-
-  const calculatePayment = async (option) => {
-    let amount = 10000; // Base amount
-
-    const token = localStorage.getItem("token"); // Replace with your actual method
-
-    try {
-      const response = await axios.post(
-        "http://localhost:8000/api/calculate_payment/",
-        {
-          amount,
-          option,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Set the Authorization header with the JWT token
-          },
-        }
-      );
-
-      return response.data.final_amount || 0;
-    } catch (error) {
-      console.error("There was an error calculating the payment!", error);
-      return 0;
-    }
-  };
+  const [creditLimit, setCreditLimit] = useState(50000);
+  const [amountUsed, setAmountUsed] = useState(0);
+  const [paymentSchedules, setPaymentSchedules] = useState({});
+  const [error, setError] = useState(null);
+  const [toggleState, setToggleState] = useState({});
 
   useEffect(() => {
-    if (showModal) {
-      const fetchCalculations = async () => {
-        const financing = await calculatePayment("financing");
-        const payInFull = await calculatePayment("full-payment");
-        const interestFree = await calculatePayment("30-day-interest-free");
-        const withPenalty = await calculatePayment("after-30-days");
-        setCalculatedAmountPayAmountDue(financing);
-        setCalculatedAmountPayInFull(payInFull);
-        setCalculatedAmountInterestFree(interestFree);
-        setCalculatedAmountWithPenalty(withPenalty);
-      };
+    const fetchCreditData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const userInfoResponse = await axios.get("http://localhost:8000/api/user-info/", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      fetchCalculations();
-    }
-  }, [showModal]);
+        const creditLimit = 50000;
+        setCreditLimit(creditLimit);
 
-  // Generate the Statement of Account PDF
-  const generateStatementOfAccount = () => {
-    // Initialize jsPDF
-    const doc = new jsPDF();
+        const transactionsResponse = await axios.get("http://localhost:8000/api/credit-transactions/", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-    // Get the current date for the statement date
-    const today = new Date();
-    const statementDate = today.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+        // Calculate total amount used across all transactions
+        const totalUsed = transactionsResponse.data.reduce((total, transaction) => total + parseFloat(transaction.amount_borrowed), 0);
+        setAmountUsed(totalUsed);
 
-    // Calculate the due date (e.g., 30 days from the statement date)
-    const dueDate = new Date(today);
-    dueDate.setDate(dueDate.getDate() + 30); // Adds 30 days to the current date
-    const formattedDueDate = dueDate.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+        // Fetch payment schedules for each transaction and group them by transaction ID
+        let schedulesByTransaction = {};
+        let initialToggleState = {};
 
-    // Example data for the statement
-    const totalBalanceDue = 10000;  // Replace with actual dynamic data
-    const minimumPaymentDue = 1500; // Replace with actual dynamic data
-    const cardNumber = "**** **** **** 1234"; // Replace with actual dynamic data
-    const creditLimit = 50000;      // Replace with actual dynamic data
-    const cashAdvanceLimit = 10000; // Replace with actual dynamic data
-    const monthlyInterestRate = 3.5; // Replace with actual dynamic data (as percentage)
-    const monthlyEIR = 4.2;         // Replace with actual dynamic data (as percentage)
+        for (let transaction of transactionsResponse.data) {
+          const { id, amount_borrowed, months_term, transaction_date } = transaction;
 
-    // Add title
-    doc.text("Statement of Account", 14, 15);
+          // Send POST request to get payment schedule for each transaction
+          const scheduleResponse = await axios.post("http://localhost:8000/api/payment-schedule/", {
+            amount_borrowed,
+            months_term,
+            transaction_date,
+          }, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
 
-    // Define the table headers and data
-    const tableData = [
-      ["Statement Date", statementDate],
-      ["Due Date", formattedDueDate],
-      ["Total Balance Due", `₱${totalBalanceDue.toFixed(2)}`],  // Use \u20B1 for peso
-      ["Minimum Payment Due", `₱${minimumPaymentDue.toFixed(2)}`], 
-      ["Card Number", cardNumber],
-      ["Credit Limit", `₱${creditLimit.toFixed(2)}`],  
-      ["Cash Advance Limit", `₱${cashAdvanceLimit.toFixed(2)}`],  
-      ["Monthly Interest Rate", `${monthlyInterestRate.toFixed(2)}%`],
-      ["Monthly EIR", `${monthlyEIR.toFixed(2)}%`]
-    ];
+          // Store payment schedule under the transaction ID
+          schedulesByTransaction[id] = {
+            transactionId: id,
+            amountBorrowed: parseFloat(amount_borrowed), // Ensure amount_borrowed is a number
+            monthsTerm: months_term,
+            paymentSchedule: scheduleResponse.data.schedule,
+          };
 
-    // Create table using autoTable
-    doc.autoTable({
-      head: [["Details", "Value"]], // Table headers
-      body: tableData,               // Table data (as array of arrays)
-      startY: 30,                    // Y position where the table should start
-      theme: "grid",                 // Optional: set the table theme (striped, grid, plain)
-      headStyles: { fillColor: [233, 236, 239] }, // Optional: Light gray header background
-    });
+          // Set initial toggle state to false (collapsed)
+          initialToggleState[id] = false;
+        }
 
-    // Save the PDF
-    doc.save("statement_of_account.pdf");
+        setPaymentSchedules(schedulesByTransaction);
+        setToggleState(initialToggleState);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError("Failed to load data.");
+      }
+    };
+
+    fetchCreditData();
+  }, []);
+
+  const handleToggle = (transactionId) => {
+    setToggleState((prevState) => ({
+      ...prevState,
+      [transactionId]: !prevState[transactionId], // Toggle the visibility
+    }));
   };
 
   return (
-    <div className="container">
-      <div className="jumbotron mt-5">
-        <p className="lead">Loan Account ID</p>
-        <h5 className="display-5">HMVZ5609</h5>
-        <hr className="my-4" />
-        <div className="row">
-          <div className="col-md-6">
-            <p className="lead">My Loans</p>
-            <h1 className="display-5">₱10000</h1>
-          </div>
-          <div className="col-md-6 d-flex justify-content-end align-items-center">
-            <button className="btn btn-primary" onClick={openModal}>
-              Pay now
-            </button>
+    <div className="container mt-5">
+      <h2 className="mb-4">Credit Summary</h2>
+      {error && <div className="alert alert-danger">{error}</div>}
+
+      <div className="row">
+        <div className="col-md-4">
+          <div className="card">
+            <div className="card-body">
+              <p className="lead">Credit Limit</p>
+              <h1 className="display-6">₱{creditLimit.toFixed(2)}</h1>
+            </div>
           </div>
         </div>
 
-        {/* Statement of Account Button */}
-        <div className="row mt-3">
-          <div className="col-md-12 d-flex justify-content-center">
-            <button
-              className="btn btn-secondary"
-              onClick={generateStatementOfAccount}
-            >
-              Download Statement of Account
-            </button>
+        <div className="col-md-4">
+          <div className="card">
+            <div className="card-body">
+              <p className="lead">Amount Used</p>
+              <h1 className="display-6">₱{amountUsed.toFixed(2)}</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4">
+          <div className="card">
+            <div className="card-body">
+              <p className="lead">Remaining Credit</p>
+              <h1 className="display-6">₱{(creditLimit - amountUsed).toFixed(2)}</h1>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div
-          className="modal fade show"
-          style={{ display: "block" }}
-          tabIndex="-1"
-          role="dialog"
-          aria-labelledby="paymentOptionsModalLabel"
-          aria-hidden="true"
-        >
-          <div className="modal-dialog" role="document">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title" id="paymentOptionsModalLabel">
-                  Payment Options
-                </h5>
-                <button
-                  type="button"
-                  className="close"
-                  onClick={closeModal}
-                  aria-label="Close"
-                >
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <div className="modal-body">
-                {/* Payment Option Selection */}
-                <div className="mb-3">
-                  <label htmlFor="paymentOption" className="form-label">Select Payment Type:</label>
-                  <select
-                    id="paymentOption"
-                    className="form-select"
-                    value={paymentOption}
-                    onChange={(e) => setPaymentOption(e.target.value)}
-                  >
-                    <option value="">Select Payment Type</option>
-                    <option value="property-tax">Property Tax</option>
-                    <option value="business-tax">Business Tax</option>
-                    <option value="other-fees">Other Fees, Licenses and Permits</option>
-                  </select>
-                </div>
+      <h3 className="mt-4">Payment Schedule by Transaction</h3>
 
-                {/* Payment Amount Display */}
-                <div className="row mb-3">
-                  <div className="col-md-12">
-                    <h5>
-                      Pay Amount Due: ₱{calculatedAmountPayAmountDue.toFixed(2)}
-                    </h5>
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-md-12">
-                    <h5>
-                      Pay in Full: ₱{calculatedAmountPayInFull.toFixed(2)}
-                    </h5>
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-md-12">
-                    <h5>
-                    30-day-interest-free: ₱{calculatedAmountInterestFree.toFixed(2)}
-                    </h5>
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-md-12">
-                    <h5>
-                    After 30 days: ₱{calculatedAmountWithPenalty.toFixed(2)}
-                    </h5>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={closeModal}
-                  >
-                    Close
-                  </button>
-                  {/* Add a button to handle payment based on selected option */}
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => {
-                      if (paymentOption) {
-                        // Handle payment based on selected option
-                        console.log(`Selected Payment Option: ${paymentOption}`);
-                        closeModal();
-                      } else {
-                        alert("Please select a payment type.");
-                      }
-                    }}
-                  >
-                    Proceed with Payment
-                  </button>
-                </div>
-              </div>
+      {Object.keys(paymentSchedules).length > 0 ? (
+        Object.values(paymentSchedules).map((schedule) => (
+          <div key={schedule.transactionId} className="mb-4">
+            <h4>Transaction ID: {schedule.transactionId}</h4>
+            <p>Amount Borrowed: ₱{schedule.amountBorrowed.toFixed(2)}</p>
+            <p>Months Term: {schedule.monthsTerm}</p>
+
+            <button
+              className="btn btn-info mb-2"
+              onClick={() => handleToggle(schedule.transactionId)}
+              aria-expanded={toggleState[schedule.transactionId]}
+              aria-controls={`schedule-${schedule.transactionId}`}
+            >
+              {toggleState[schedule.transactionId] ? "Hide Schedule" : "Show Schedule"}
+            </button>
+
+            <div className={`collapse ${toggleState[schedule.transactionId] ? "show" : ""}`} id={`schedule-${schedule.transactionId}`}>
+              <table className="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Due Date</th>
+                    <th>Payment</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedule.paymentSchedule.map((entry, i) => (
+                    <tr key={i}>
+                      <td>{entry.due_date}</td>
+                      <td>₱{entry.payment.toFixed(2)}</td>
+                      <td>
+                        <button className="btn btn-primary">Pay</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
+        ))
+      ) : (
+        <p>No payment schedules available.</p>
       )}
-
-      {/* Backdrop */}
-      {showModal && <div className="modal-backdrop fade show"></div>}
     </div>
   );
 };

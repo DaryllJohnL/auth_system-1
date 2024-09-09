@@ -14,7 +14,7 @@ import convergeBg from '../assets/images/CONVERGE.jpg';
 import visaBg from '../assets/images/VISA.png';
 import mastercardBg from '../assets/images/MASTERCARD.jpg';
 
-const BillCategoriesCard = () => {
+const BillCategoriesCard = (balance) => {
   const [isOpen, setIsOpen] = useState(false);
   const [electricOpen, setElectricOpen] = useState(false);
   const [waterOpen, setWaterOpen] = useState(false);
@@ -165,6 +165,7 @@ const BillCategoriesCard = () => {
         show={showModal}
         handleClose={handleCloseModal}
         selectedCategory={selectedCategory}
+        userBalance={balance}
       />
     </>
   );
