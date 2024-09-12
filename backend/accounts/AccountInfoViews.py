@@ -15,7 +15,8 @@ def get_account_info(request):
             'first_name': user.first_name,
             'last_name': user.last_name,
             'email': user.email,
-            'balance': str(profile.balance)  # Convert balance to string for JSON serialization
+            'balance': str(profile.balance),  # Convert balance to string for JSON serialization
+            'date_created': profile.date_created.isoformat()  # Include creation date
         }
         return Response(data, status=status.HTTP_200_OK)
     except Profile.DoesNotExist:

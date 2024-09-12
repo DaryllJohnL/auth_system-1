@@ -2,28 +2,24 @@ import numpy as np
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 import numpy_financial as npf
+from datetime import datetime
 
 @api_view(['POST'])
 def calculate_payment(request):
-    amount = request.data.get('amount', 0)
+    originalAmount = request.data.get('originalAmount', 0)
+    totalAmount = request.data.get('totalAmount', 0)
     option = request.data.get('option', '')
-    # Financing: calculate amortization for 6 months at 5% interest
-    monthly_rate = 0.03  
-    n_months = 12  # Total duration in months
-    # Calculate monthly payment using np.pmt
-    monthly_payment = npf.pmt(monthly_rate, n_months, -amount)
-    total_payment = monthly_payment * n_months
+    due_date_str = request.data.get('due_date', '')
+    due_date = datetime.strptime(due_date_str, '%Y-%m-%d') if due_date_str else None
+    current_date = datetime.now()
 
-    # Sample logic for calculating payments
+
     if option == 'full-payment':
-        final_amount = amount * 0.95  # 5% discount
-    elif option == '30-day-interest-free':
-        final_amount = amount  # No interest
-    elif option == 'after-30-days':
-        final_amount = monthly_payment * 1.1  # 10% penalty after 30 days
-    elif option == 'financing':
-        final_amount = monthly_payment
+        if due_date and current_date <= due_date:
+            final_amount = originalAmount  # Interest-free if paid before due date
+        else:
+            final_amount = totalAmount * 0.95  # 5% discount
     else:
-        final_amount = amount
+        final_amount = totalAmount
 
     return Response({"final_amount": round(final_amount, 2)})

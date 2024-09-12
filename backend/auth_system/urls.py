@@ -4,8 +4,9 @@ from accounts.PaymentOptionViews import calculate_payment
 from accounts.SchedulePaymentViews import payment_schedule
 from accounts.CashInViews import cash_in
 from accounts.AccountInfoViews import get_account_info
-from accounts.CreditTransactionViews import record_credit_transaction
-from accounts.CreditTransactionViews import credit_transactions   
+from accounts.CreditTransactionViews import delete_transaction,update_paid_months,credit_transactions,record_credit_transaction,update_payment 
+from accounts.DeductBalanceViews import deduct_balance 
+from accounts.TransactionViews import create_transaction    
 urlpatterns = [
     path('auth/cash-in/', cash_in, name='cash_in'),
     path('auth/calculate_payment/', calculate_payment, name='calculate_payment'),
@@ -16,6 +17,11 @@ urlpatterns = [
     path('api/record-credit-transaction/', record_credit_transaction, name='record_credit_transaction'),
     path('api/credit-transactions/', credit_transactions, name='credit_transactions'), 
     path('api/payment-schedule/', payment_schedule, name='payment_schedule'),
+    path('api/deduct-balance/', deduct_balance, name='deduct_balance'),
+    path('api/delete-transaction/<int:transaction_id>/', delete_transaction, name='delete-transaction'),
+    path('api/update-paid-months/', update_paid_months, name='update_paid_months'),
+    path('api/update-payment/', update_payment, name='update-payment'),
+    path('api/transaction/', create_transaction, name='create_transaction'),
 ]
 
 # This catches all other routes and serves the React frontend (assuming index.html is your React app's entry point)

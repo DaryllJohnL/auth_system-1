@@ -28,45 +28,79 @@ const PaymentModal = ({ show, handleClose, selectedCategory, userBalance }) => {
       alert('Please select a payment method.');
       return;
     }
-  
+
     const amountValue = parseFloat(amount);
     if (isNaN(amountValue) || amountValue <= 0) {
       alert('Please enter a valid amount.');
       return;
     }
-  
-    const months = selectedPaymentMethod.includes('6 Months') ? 6 : 12;
-    const transactionDate = new Date().toISOString();
-  
+
     const token = localStorage.getItem('token'); // Retrieve the token
     if (!token) {
       alert('Authentication token is missing. Please log in again.');
       return;
     }
-  
-    try {
-      await axios.post('http://localhost:8000/api/record-credit-transaction/', {
-        amount_borrowed: amountValue,
-        months_term: months,
-        transaction_date: transactionDate,
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-  
-      alert('Payment confirmed and details saved!');
-    } catch (error) {
-      if (error.response && error.response.data) {
-        console.error('Error saving payment details:', error.response.data);
-        alert('Failed to save payment details. ' + error.response.data);
-      } else {
-        console.error('Error saving payment details:', error);
-        alert('Failed to save payment details.');
+
+    if (selectedPaymentMethod === 'Account Balance') {
+      // Check if user has sufficient balance
+      if (amountValue > userBalance.amount) {
+        alert('Insufficient balance.');
+        return;
+      }
+
+      try {
+        // Deduct balance in backend
+        await axios.post('http://localhost:8000/api/deduct-balance/', {
+          amount: amountValue,
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        // just refresh and have a message
+
+        alert('Payment using account balance confirmed!');
+        window.location.reload();
+      } catch (error) {
+        if (error.response && error.response.data) {
+          console.error('Error during payment:', error.response.data);
+          alert('Failed to process payment. ' + error.response.data);
+        } else {
+          console.error('Error during payment:', error);
+          alert('Failed to process payment.');
+        }
+      }
+
+    } else {
+      const months = selectedPaymentMethod.includes('6 Months') ? 6 : 12;
+      const transactionDate = new Date().toISOString();
+      try {
+        await axios.post('http://localhost:8000/api/record-credit-transaction/', {
+          amount_borrowed: amountValue,
+          months_term: months,
+          transaction_date: transactionDate,
+          description: `${selectedCategory.name}`,
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        alert('Payment confirmed and details saved!');
+       
+      } catch (error) {
+        if (error.response && error.response.data) {
+          console.error('Error saving payment details:', error.response.data);
+          alert('Failed to save payment details. ' + error.response.data);
+        } else {
+          console.error('Error saving payment details:', error);
+          alert('Failed to save payment details.');
+        }
       }
     }
-  
+
     setShowFinancingModal(false);
   };
 
