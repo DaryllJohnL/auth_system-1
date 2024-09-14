@@ -16,7 +16,15 @@ class Migration(migrations.Migration):
             name='TransactionHistory',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('transaction_type', models.CharField(choices=[('credit', 'Credit'), ('payment', 'Payment')], max_length=20)),
+                ('transaction_type', models.CharField(
+                    choices=[
+                        ('credit', 'Credit'),
+                        ('payment', 'Payment'),
+                        ('deposit', 'Deposit'),   # Added deposit
+                        ('withdrawal', 'Withdrawal')  # Added withdrawal
+                    ], 
+                    max_length=20
+                )),
                 ('amount', models.DecimalField(decimal_places=2, max_digits=10)),
                 ('date', models.DateTimeField(auto_now_add=True)),
                 ('description', models.TextField(blank=True, null=True)),

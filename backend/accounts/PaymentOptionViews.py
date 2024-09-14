@@ -15,7 +15,9 @@ def calculate_payment(request):
 
 
     if option == 'full-payment':
-        if due_date and current_date <= due_date:
+        if totalAmount <= originalAmount:
+            final_amount = totalAmount
+        elif due_date and current_date <= due_date:
             final_amount = originalAmount  # Interest-free if paid before due date
         else:
             final_amount = totalAmount * 0.95  # 5% discount

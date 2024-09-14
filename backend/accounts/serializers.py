@@ -13,7 +13,8 @@ class CreditTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CreditTransaction
         fields = ['id', 'amount_borrowed', 'months_term', 'transaction_date', 'paid_months','description']
+        
 class TransactionHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = TransactionHistory
-        fields = ['user', 'transaction_type', 'amount', 'description']
+        fields = '__all__'
